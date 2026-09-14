@@ -147,5 +147,8 @@ tensorboard --logdir logs/
 ---
 
 ## 👥 Autores y Reconocimientos
-- **Desarrollador / Estudiante:** Alejandro Rodríguez ([@AlejandroRodriguezDev](https://github.com/AlejandroRodriguezDev))
-- **Universidad Autónoma de Occidente (UAO)** — Cali, Colombia.
+- **Alejandro Rodríguez Cortés** — Cód. 2225645 ([@AlejandroRodriguezDev](https://github.com/AlejandroRodriguezDev))
+- **Nicolás Mejía Ochoa** — Cód. 2205076
+- **Docente Evaluador:** Prof. Jesús Alfonso López S.
+- **Institución:** Universidad Autónoma de Occidente (UAO) — Cali, Colombia
+- **Asignatura:** Redes Neuronales Artificiales y Deep Learning

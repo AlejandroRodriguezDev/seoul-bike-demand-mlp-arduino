@@ -31,7 +31,12 @@ def add_code(code):
 add_md("""# UNIVERSIDAD AUTÓNOMA DE OCCIDENTE
 ## Facultad de Ingeniería - Departamento de Automática y Electrónica
 ### Redes Neuronales Artificiales y Deep Learning
-**Profesor:** Jesús Alfonso López S.  
+
+**Integrantes:**
+- **Alejandro Rodríguez Cortés** (Cód. 2225645)
+- **Nicolás Mejía Ochoa** (Cód. 2205076)
+
+**Docente:** Prof. Jesús Alfonso López S.  
 **Miniproyecto:** Redes Neuronales Multicapa (MLP) Aplicadas a Problemas de Regresión  
 **Dataset Seleccionado:** *Seoul Bike Sharing Demand* (UCI Machine Learning Repository ID: 560)  
 **Plataformas:** TensorFlow 2 / Keras & Microcontrolador Arduino (Simulación en Wokwi)

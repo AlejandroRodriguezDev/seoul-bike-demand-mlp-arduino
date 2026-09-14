@@ -3,6 +3,7 @@
   PROYECTO: REDES MULTICAPA APLICADAS A PROBLEMAS DE REGRESIÓN
   Dataset: Seoul Bike Sharing Demand (Predicción de Demanda Horaria)
   Asignatura: Redes Neuronales y Deep Learning
+  Autores: Alejandro Rodríguez Cortés (2225645), Nicolás Mejía Ochoa (2205076)
   Profesor: Jesús Alfonso López - Universidad Autónoma de Occidente
   =============================================================================
   

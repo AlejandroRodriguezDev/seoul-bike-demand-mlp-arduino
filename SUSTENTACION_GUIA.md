@@ -2,7 +2,10 @@
 ## Miniproyecto: Redes Neuronales MLP para Regresión (Seoul Bike Sharing Demand)
 **Asignatura:** Redes Neuronales Artificiales y Deep Learning  
 **Profesor:** Jesús Alfonso López S.  
-**Universidad Autónoma de Occidente**
+**Integrantes:**
+- Alejandro Rodríguez Cortés (Cód. 2225645)
+- Nicolás Mejía Ochoa (Cód. 2205076)
+**Institución:** Universidad Autónoma de Occidente (UAO)
 
 ---
 
