@@ -99,15 +99,26 @@ El dataset **Seoul Bike Sharing Demand** recopila la demanda horaria de biciclet
 Podemos cargar los datos mediante el paquete oficial `ucimlrepo` (ID 560) o mediante el archivo local `SeoulBikeData.csv`:
 """)
 
-add_code("""# Carga de datos (con soporte ucimlrepo y fallback local)
+add_code("""# Carga de datos robusta (soporta UCI API, archivo local y descarga automática desde GitHub en Colab)
+GITHUB_DATA_URL = "https://raw.githubusercontent.com/AlejandroRodriguezDev/seoul-bike-demand-mlp-arduino/main/data/SeoulBikeData.csv"
+
 try:
     from ucimlrepo import fetch_ucirepo
     dataset_uci = fetch_ucirepo(id=560)
     df = pd.concat([dataset_uci.data.features, dataset_uci.data.targets], axis=1)
     print("Dataset cargado exitosamente desde UCI Repository (id=560).")
-except Exception as e:
-    print("Cargando desde archivo local CSV...")
-    df = pd.read_csv('../data/SeoulBikeData.csv', encoding='latin-1')
+except Exception:
+    try:
+        df = pd.read_csv('data/SeoulBikeData.csv', encoding='latin-1')
+        print("Dataset cargado desde archivo local: data/SeoulBikeData.csv")
+    except Exception:
+        try:
+            df = pd.read_csv('../data/SeoulBikeData.csv', encoding='latin-1')
+            print("Dataset cargado desde archivo local: ../data/SeoulBikeData.csv")
+        except Exception:
+            print("Descargando dataset automáticamente desde GitHub...")
+            df = pd.read_csv(GITHUB_DATA_URL, encoding='latin-1')
+            print("Dataset cargado exitosamente desde el repositorio de GitHub.")
 
 # Estandarización de nombres de columnas
 df.columns = [
