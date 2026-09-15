@@ -99,26 +99,20 @@ El dataset **Seoul Bike Sharing Demand** recopila la demanda horaria de biciclet
 Podemos cargar los datos mediante el paquete oficial `ucimlrepo` (ID 560) o mediante el archivo local `SeoulBikeData.csv`:
 """)
 
-add_code("""# Carga de datos robusta (soporta UCI API, archivo local y descarga automática desde GitHub en Colab)
-GITHUB_DATA_URL = "https://raw.githubusercontent.com/AlejandroRodriguezDev/seoul-bike-demand-mlp-arduino/main/data/SeoulBikeData.csv"
+add_code("""# Carga de datos robusta (compatible con Google Colab, Jupyter local y GitHub)
+DATA_URL = "https://raw.githubusercontent.com/AlejandroRodriguezDev/seoul-bike-demand-mlp-arduino/main/data/SeoulBikeData.csv"
 
 try:
-    from ucimlrepo import fetch_ucirepo
-    dataset_uci = fetch_ucirepo(id=560)
-    df = pd.concat([dataset_uci.data.features, dataset_uci.data.targets], axis=1)
-    print("Dataset cargado exitosamente desde UCI Repository (id=560).")
+    df = pd.read_csv('data/SeoulBikeData.csv', encoding='latin-1')
+    print("Dataset cargado desde archivo local: data/SeoulBikeData.csv")
 except Exception:
     try:
-        df = pd.read_csv('data/SeoulBikeData.csv', encoding='latin-1')
-        print("Dataset cargado desde archivo local: data/SeoulBikeData.csv")
+        df = pd.read_csv('../data/SeoulBikeData.csv', encoding='latin-1')
+        print("Dataset cargado desde archivo local: ../data/SeoulBikeData.csv")
     except Exception:
-        try:
-            df = pd.read_csv('../data/SeoulBikeData.csv', encoding='latin-1')
-            print("Dataset cargado desde archivo local: ../data/SeoulBikeData.csv")
-        except Exception:
-            print("Descargando dataset automáticamente desde GitHub...")
-            df = pd.read_csv(GITHUB_DATA_URL, encoding='latin-1')
-            print("Dataset cargado exitosamente desde el repositorio de GitHub.")
+        print("Cargando dataset directamente desde el repositorio de GitHub (Modo Colab)...")
+        df = pd.read_csv(DATA_URL, encoding='latin-1')
+        print(f"Dataset cargado exitosamente desde GitHub ({df.shape[0]} filas x {df.shape[1]} columnas).")
 
 # Estandarización de nombres de columnas
 df.columns = [
@@ -486,10 +480,15 @@ for idx, layer in enumerate(best_model.layers):
 
 header_str += "#endif // WEIGHTS_H\\n"
 
-with open('../arduino_wokwi/weights.h', 'w') as f:
-    f.write(header_str)
-
-print("Cabecera weights.h generada exitosamente para Arduino/Wokwi.")
+try:
+    os.makedirs('../arduino_wokwi', exist_ok=True)
+    with open('../arduino_wokwi/weights.h', 'w') as f:
+        f.write(header_str)
+    print("Cabecera weights.h generada en ../arduino_wokwi/weights.h")
+except Exception:
+    with open('weights.h', 'w') as f:
+        f.write(header_str)
+    print("Cabecera weights.h generada exitosamente en el directorio actual: ./weights.h")
 """)
 
 add_md("""## 9. Verificación Numérica: Keras vs Emulación en C++/Arduino
