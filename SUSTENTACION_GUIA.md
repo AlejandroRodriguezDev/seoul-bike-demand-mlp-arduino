@@ -216,3 +216,284 @@ Comienza la sustentación con máxima seguridad, autoridad técnica y fluidez:
 ### P6: "¿Por qué usaron batch_size = 64 y epochs = 80?"
 - **Respuesta:**
   > *"Con 7,008 muestras de entrenamiento, un batch size de 64 genera aproximadamente 110 pasos de gradiente por época, equilibrando la velocidad de vectorización matricial en la GPU/CPU con el ruido estocástico suficiente para escapar de mínimos locales. En 80 épocas, observamos que las curvas de pérdida ya se estabilizaron en su meseta asintótica sin sobreajustarse."*
+
+---
+
+## 4. GUÍA QUIRÚRGICA DEL CÓDIGO (CÓMO EXPLICAR CADA LÍNEA "SALVAJE" Y PARÁMETRO)
+
+Si el profesor Gilber te señala la pantalla y te dice: *"Explíqueme qué hace exactamente esta línea de código o este bucle"*, aquí tienes la explicación técnica detallada, línea por línea, parámetro por parámetro.
+
+---
+
+### A. ¿POR QUÉ HAY CICLOS `for` EN LAS CELDAS 9 Y 10?
+* **El Principio de Ingeniería de Software DRY (*Don't Repeat Yourself*):**  
+  Para comparar 3 arquitecturas o 3 optimizadores de forma rigurosa, un programador novato copiaría y pegaría el bloque de entrenamiento 3 veces consecutivas, generando más de 150 líneas de código duplicadas y propensas a errores de dedo.  
+  Al usar un ciclo `for` iterando sobre un diccionario (`dict.items()`), garantizamos que **absolutamente todos los modelos se compilan, entrenan, registran en TensorBoard, evalúan y desnormalizan bajo exactamente las mismas condiciones experimentales**.
+* **El Detalle Crucial de la Celda 10:**  
+  En la celda de optimizadores, la línea `model = build_arch_2(input_dim)` está **DENTRO del bucle `for`**.  
+  *¿Por qué?* Porque si el modelo se construyera afuera, el segundo optimizador (RMSprop) continuaría entrenando sobre los pesos que ya modificó Adam. Al instanciarlo adentro en cada vuelta, se garantiza que cada optimizador empieza desde cero con pesos nuevos y frescos, asegurando una competencia 100% justa.
+
+---
+
+### B. DESGLOSE QUIRÚRGICO DE LA CELDA 9 (COMPARACIÓN DE ARQUITECTURAS)
+
+```python
+EPOCHS = 80
+BATCH_SIZE = 64
+
+architectures = {
+    'Arch1_Ligera (16)': build_arch_1(input_dim),
+    'Arch2_Media (32-16)': build_arch_2(input_dim),
+    'Arch3_Profunda (64-32-16)': build_arch_3(input_dim)
+}
+
+histories_arch = {}
+results_arch = {}
+
+for name, model in architectures.items():
+    print(f"Entrenando {name}...")
+    opt = tf.keras.optimizers.Adam(learning_rate=0.005)
+    model.compile(optimizer=opt, loss='mean_squared_error', metrics=['mean_absolute_error'])
+    
+    log_dir = os.path.join('logs', f"nb_arch_{name.split()[0]}_{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}")
+    tb_cb = TensorBoard(log_dir=log_dir, write_graph=True)
+    
+    h = model.fit(
+        X_train, y_train,
+        validation_data=(X_test, y_test),
+        epochs=EPOCHS,
+        batch_size=BATCH_SIZE,
+        verbose=0,
+        callbacks=[tb_cb]
+    )
+    histories_arch[name] = h.history
+    
+    # Evaluación en escala real
+    y_pred_real = scaler_y.inverse_transform(model.predict(X_test, verbose=0))
+    r2 = r2_score(y_test_raw, y_pred_real)
+    mae = mean_absolute_error(y_test_raw, y_pred_real)
+    rmse = np.sqrt(mean_squared_error(y_test_raw, y_pred_real))
+    
+    results_arch[name] = {
+        'R2': r2, 'MAE (bicis)': mae, 'RMSE (bicis)': rmse,
+        'Parámetros': model.count_params(), 'Val Loss': h.history['val_loss'][-1]
+    }
+
+pd.DataFrame(results_arch).T
+```
+
+#### Línea por línea y parámetro por parámetro:
+
+1. **`EPOCHS = 80`**:
+   - **Qué es una época:** Un ciclo completo donde el algoritmo ve y procesa las 7,008 muestras de entrenamiento una vez de ida (*forward*) y una de vuelta (*backpropagation*).
+   - **Por qué 80:** En nuestras pruebas observamos que entre la época 25 y 40 las curvas de pérdida ya convergen y se aplanan. 80 épocas aseguran estabilidad total sin desperdiciar tiempo de cómputo ni inducir sobreajuste.
+
+2. **`BATCH_SIZE = 64`**:
+   - **Qué es el tamaño de lote:** La cantidad de muestras que la red procesa en paralelo antes de calcular el gradiente y actualizar los pesos.
+   - **Por qué 64:** Con 7,008 muestras, $7008 / 64 \approx 110$ actualizaciones de pesos por época (*Mini-batch Gradient Descent*). Es el balance perfecto: más rápido y estable que actualizar muestra por muestra (SGD puro, $batch=1$), y con más capacidad de escapar de mínimos locales que actualizar todo el dataset de golpe ($batch=7008$). Además, 64 es potencia de 2, lo que optimiza la memoria caché y los registros SIMD del procesador.
+
+3. **`architectures = { ... }`**:
+   - Diccionario clave-valor de Python donde la **clave** es el nombre legible para imprimir y etiquetar en TensorBoard, y el **valor** es el modelo de Keras recién instanciado.
+
+4. **`histories_arch = {}` y `results_arch = {}`**:
+   - Diccionarios vacíos que actuarán como acumuladores en memoria para guardar las curvas de aprendizaje y la tabla comparativa de métricas al final de cada vuelta del bucle.
+
+5. **`for name, model in architectures.items():`**:
+   - Método `.items()` que extrae en cada iteración la tupla con el nombre en texto (`name`) y el objeto de red (`model`).
+
+6. **`opt = tf.keras.optimizers.Adam(learning_rate=0.005)`**:
+   - **Qué es Adam:** *Adaptive Moment Estimation*. Es un optimizador avanzado que calcula tasas de aprendizaje individuales para cada peso combinando promedios móviles del gradiente (primer momento, media) y del gradiente al cuadrado (segundo momento, varianza no centrada).
+   - **`learning_rate=0.005` ($\eta$):** La tasa de aprendizaje. Determina el tamaño del paso en la dirección contraria al gradiente. Si es muy grande (ej: 0.1), el entrenamiento oscila caóticamente y diverge; si es muy pequeña (ej: 0.00001), tarda miles de épocas en aprender. 0.005 permite converger suavemente en 80 épocas.
+
+7. **`model.compile(optimizer=opt, loss='mean_squared_error', metrics=['mean_absolute_error'])`**:
+   - **`optimizer=opt`:** Le asigna el algoritmo de optimización encargado de actualizar los pesos.
+   - **`loss='mean_squared_error'` (MSE):** La función de pérdida matemática que la red busca minimizar: $\frac{1}{N}\sum(y - \hat{y})^2$. Al elevar los errores al cuadrado, castiga con mucha severidad las predicciones muy lejanas, lo que es vital en transporte público.
+   - **`metrics=['mean_absolute_error']` (MAE):** Métrica de seguimiento para el ojo humano: $\frac{1}{N}\sum|y - \hat{y}|$. *Ojo para la sustentación:* La métrica **no** se usa para calcular gradientes ni mover pesos; solo sirve de reporte informativo.
+
+8. **`log_dir = os.path.join('logs', f"nb_arch_{name.split()[0]}_{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}")`**:
+   - **`os.path.join`:** Construye rutas de carpetas compatibles tanto con Windows (`\`) como con Linux (`/`).
+   - **`strftime('%Y%m%d-%H%M%S')`:** Inserta la fecha y hora exacta (ej: `20260915-091530`). Esto garantiza que cada corrida tenga su propia subcarpeta y TensorBoard no mezcle ni sobreescriba experimentos anteriores.
+
+9. **`tb_cb = TensorBoard(log_dir=log_dir, write_graph=True)`**:
+   - Crea el "Callback" de TensorBoard.
+   - **`write_graph=True`:** Le ordena a Keras guardar la estructura interna de capas, tensores y operaciones para poder visualizar el diagrama de bloques en la pestaña "Graphs" de TensorBoard.
+
+10. **`h = model.fit(...)` (EL ENTRENAMIENTO):**
+    - **`X_train, y_train`:** Las 7,008 muestras de entrenamiento (15 variables escaladas $[0,1]$ y su demanda real escalada).
+    - **`validation_data=(X_test, y_test)`:** Las 1,752 muestras de prueba. Al final de cada época, la red calcula la pérdida sobre estos datos para verificar que está generalizando y no memorizando. **Importante:** La red jamás hace backpropagation sobre estos datos.
+    - **`epochs=EPOCHS`:** Ejecuta las 80 pasadas completas.
+    - **`batch_size=BATCH_SIZE`:** Actualiza los pesos cada 64 muestras.
+    - **`verbose=0`:** Modo silencioso. Evita llenar la pantalla con 240 barras de progreso de texto en Colab.
+    - **`callbacks=[tb_cb]`:** Conecta el escuchador de TensorBoard para que guarde los datos en disco en cada época.
+    - **`h`:** Objeto `History` devuelto por Keras que contiene el registro numérico época por época.
+
+11. **`histories_arch[name] = h.history`**:
+    - Extrae el diccionario `h.history` (que contiene las listas `loss`, `val_loss`, `mean_absolute_error`, `val_mean_absolute_error`) y lo almacena para graficarlo después con Matplotlib.
+
+12. **`y_pred_real = scaler_y.inverse_transform(model.predict(X_test, verbose=0))`**:
+    - **`model.predict(X_test)`:** Ejecuta la pasada hacia adelante (*forward pass*) para las 1,752 muestras de prueba. Arroja números normalizados en el rango $[0, 1]$.
+    - **`scaler_y.inverse_transform(...)` (LÍNEA DE DESNORMALIZACIÓN):** Aplica la fórmula inversa:
+      $$\hat{y}_{real} = \hat{y}_{norm} \cdot (y_{max} - y_{min}) + y_{min}$$
+      Transforma los valores entre 0 y 1 al número real y tangible de bicicletas alquiladas por hora.
+
+13. **Cálculo de métricas finales de regresión:**
+    - **`r2 = r2_score(y_test_raw, y_pred_real)`:** Coeficiente de determinación $R^2 = 1 - \frac{\sum (y_i - \hat{y}_i)^2}{\sum (y_i - \bar{y})^2}$. Mide qué porcentaje de la variación total de la demanda es explicado por el modelo ($0.8253 = 82.53\%$).
+    - **`mae = mean_absolute_error(...)`:** Error absoluto medio en unidades de bicicletas reales ($\approx 174.9$ bicis).
+    - **`rmse = np.sqrt(mean_squared_error(...))`:** Raíz del error cuadrático medio ($\approx 269.8$ bicis). Penaliza desviaciones grandes atípicas.
+    - **`model.count_params()`:** Cuenta el número exacto de parámetros entrenables (pesos y sesgos).
+    - **`h.history['val_loss'][-1]`:** El `[-1]` extrae el error de validación de la última época (época 80).
+
+14. **`pd.DataFrame(results_arch).T`**:
+    - Convierte el diccionario de resultados en una tabla estructurada de Pandas.
+    - **¿Por qué `.T` (Transpuesta)?** Por defecto, Pandas pone las claves del diccionario como columnas y las métricas como filas. Al transponer con `.T`, cada fila pasa a ser una arquitectura y cada columna una métrica ($R^2$, MAE, RMSE, Parámetros), haciéndolo infinitamente más legible.
+
+---
+
+### C. DESGLOSE QUIRÚRGICO DE LA CELDA 10 (COMPARACIÓN DE OPTIMIZADORES)
+
+```python
+optimizers = {
+    'Adam': tf.keras.optimizers.Adam(learning_rate=0.005),
+    'RMSprop': tf.keras.optimizers.RMSprop(learning_rate=0.005),
+    'SGD_Momentum': tf.keras.optimizers.SGD(learning_rate=0.02, momentum=0.9)
+}
+
+histories_opt = {}
+results_opt = {}
+trained_models = {}
+
+for opt_name, opt_inst in optimizers.items():
+    print(f"Entrenando con {opt_name}...")
+    model = build_arch_2(input_dim)
+    model.compile(optimizer=opt_inst, loss='mean_squared_error', metrics=['mean_absolute_error'])
+    
+    log_dir = os.path.join('logs', f"nb_opt_{opt_name}_{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}")
+    tb_cb = TensorBoard(log_dir=log_dir, write_graph=True)
+    
+    h = model.fit(
+        X_train, y_train,
+        validation_data=(X_test, y_test),
+        epochs=EPOCHS,
+        batch_size=BATCH_SIZE,
+        verbose=0,
+        callbacks=[tb_cb]
+    )
+    histories_opt[opt_name] = h.history
+    trained_models[opt_name] = model
+    
+    y_pred_real = scaler_y.inverse_transform(model.predict(X_test, verbose=0))
+    r2 = r2_score(y_test_raw, y_pred_real)
+    mae = mean_absolute_error(y_test_raw, y_pred_real)
+    rmse = np.sqrt(mean_squared_error(y_test_raw, y_pred_real))
+    
+    results_opt[opt_name] = {
+        'R2': r2, 'MAE (bicis)': mae, 'RMSE (bicis)': rmse, 'Val Loss': h.history['val_loss'][-1]
+    }
+
+pd.DataFrame(results_opt).T
+```
+
+#### Parámetros específicos de los 3 optimizadores:
+1. **Adam (`learning_rate=0.005`):**
+   - Mantiene dos vectores de estado por cada peso: $m_t$ (promedio móvil del gradiente) y $v_t$ (promedio móvil del cuadrado del gradiente). Esto le da adaptabilidad automática y excelente estabilidad.
+2. **RMSprop (`learning_rate=0.005`):**
+   - Desarrollado por Geoffrey Hinton. Divide el gradiente por la raíz cuadrada de la media móvil exponencial de los gradientes históricos al cuadrado. Evita que la tasa de aprendizaje decaiga a cero como en AdaGrad.
+3. **SGD con Momentum (`learning_rate=0.02, momentum=0.9`):**
+   - **¿Por qué `learning_rate=0.02` es mayor que en Adam?** Porque el descenso de gradiente estocástico estándar no tiene factores de aceleración adaptativos automáticos en el denominador; con $0.005$ avanzaría demasiado lento, por lo que necesita una tasa base mayor.
+   - **`momentum=0.9` ($\gamma$):** Simula inercia física ($v_t = \gamma v_{t-1} + \eta \nabla L$). Si los gradientes apuntan sucesivamente en la misma dirección, la actualización se acelera; si oscilan de un lado a otro en un cañón estrecho de la superficie de error, las oscilaciones transversales se cancelan y se amortiguan.
+4. **`trained_models[opt_name] = model`**:
+   - Guarda el objeto del modelo entrenado en la memoria RAM. Gracias a esta línea, más adelante podemos tomar directamente el modelo entrenado con Adam (`best_model = trained_models['Adam']`) para extraer sus pesos y guardarlo en el archivo `.keras`.
+
+---
+
+### D. OTRAS LÍNEAS "SALVAJES" Y PARÁMETROS EN EL CUADERNO
+
+Si el profesor pregunta por cualquier otra celda anterior o posterior:
+
+#### 1. Celda 1: Fijar semillas de reproducibilidad
+```python
+SEED = 42
+np.random.seed(SEED)
+tf.random.set_seed(SEED)
+```
+- **¿Qué hace?** Configura la semilla del generador de números pseudoaleatorios tanto en NumPy como en TensorFlow.
+- **¿Por qué 42?** Es una convención clásica en ciencias de la computación (homenaje a *La Guía del Autoestopista Galáctico*). Garantiza que la inicialización aleatoria de los pesos sinápticos y la partición aleatoria de los datos sean **100% reproducibles**: si el profesor ejecuta el código en su máquina, obtendrá los mismos decimales exactos.
+
+#### 2. Celda 4: Codificación binaria y One-Hot Encoding
+```python
+df['Holiday_Binary'] = (df['Holiday'] == 'Holiday').astype(int)
+df['Functioning_Binary'] = (df['Functioning_Day'] == 'Yes').astype(int)
+seasons_dummies = pd.get_dummies(df['Seasons'], prefix='Season', dtype=int)
+df_model = pd.concat([df, seasons_dummies], axis=1)
+```
+- **`(df['Holiday'] == 'Holiday').astype(int)`:** Genera un vector booleano (`True`/`False`) y `.astype(int)` lo castea a enteros binarios (1 si es festivo, 0 si no lo es).
+- **`pd.get_dummies(..., prefix='Season', dtype=int)`:** Crea las 4 columnas binarias mutuamente excluyentes (`Season_Spring`, `Season_Summer`, `Season_Autumn`, `Season_Winter`).
+- **`axis=1` en `pd.concat`:** Concatena a lo largo de las **columnas** (horizontalmente). Si pusiéramos `axis=0`, intentaría pegar las tablas una debajo de la otra como nuevas filas.
+
+#### 3. Celda 5: Matriz de correlación y visualización
+```python
+df_corr = pd.concat([y, X], axis=1).corr()
+sns.heatmap(df_corr, annot=True, fmt=".2f", cmap='coolwarm', cbar=True, square=True)
+```
+- **`.corr()`:** Aplica la ecuación de correlación lineal de Pearson $r \in [-1, 1]$ entre cada par de variables.
+- **`annot=True`:** Dibuja el número numérico dentro de cada celda del mapa de calor.
+- **`fmt=".2f"`:** Formatea los valores a 2 decimales para que no se amontonen los números.
+- **`cmap='coolwarm'`:** Paleta de color divergente: rojo para correlaciones positivas altas, azul para negativas y blanco para neutrales cercanas a cero.
+- **`square=True`:** Fuerza a que cada celda sea un cuadrado geométrico perfecto, facilitando la lectura visual.
+
+#### 4. Celda 6: Partición y Escalado sin Data Leakage
+```python
+X_train_raw, X_test_raw, y_train_raw, y_test_raw = train_test_split(
+    X.values, y.values, test_size=0.2, random_state=SEED, shuffle=True
+)
+scaler_X = MinMaxScaler(feature_range=(0, 1))
+X_train = scaler_X.fit_transform(X_train_raw)
+X_test = scaler_X.transform(X_test_raw)
+```
+- **`shuffle=True`:** Baraja aleatoriamente las muestras antes de partir. Fundamental en este problema para que en el conjunto de prueba haya datos mezclados de todas las estaciones y todas las horas del día.
+- **`fit_transform` vs `transform` (PREGUNTA TÍPICA DE EXAMEN):**
+  - En `X_train` usamos **`fit_transform`**: la función calcula el mínimo $x_{min}$ y máximo $x_{max}$ del conjunto de entrenamiento y luego normaliza.
+  - En `X_test` usamos **únicamente `transform`**: aplica la fórmula usando los mínimos y máximos aprendidos en entrenamiento.  
+  *¿Por qué?* Para evitar la **fuga de información (*Data Leakage*)**. El conjunto de prueba debe simular datos futuros que la red nunca ha visto; si le hiciéramos `fit` al conjunto de prueba, estaríamos filtrando información del futuro en el preprocesamiento.
+
+#### 5. Celda 7: Conteo manual de parámetros
+```python
+m2 = build_arch_2(input_dim)
+m2.summary()
+```
+- **Capa Oculta 1 (`Dense(32)`):**  
+  $(15 \text{ entradas} \times 32 \text{ neuronas}) + 32 \text{ sesgos (biases)} = 480 + 32 = \mathbf{512 \text{ parámetros}}$.
+- **Capa Oculta 2 (`Dense(16)`):**  
+  $(32 \text{ entradas} \times 16 \text{ neuronas}) + 16 \text{ sesgos} = 512 + 16 = \mathbf{528 \text{ parámetros}}$.
+- **Capa de Salida (`Dense(1)`):**  
+  $(16 \text{ entradas} \times 1 \text{ neurona}) + 1 \text{ sesgo} = 16 + 1 = \mathbf{17 \text{ parámetros}}$.
+- **Total:** $512 + 528 + 17 = \mathbf{1,057 \text{ parámetros}}$.  
+  Multiplicado por 4 bytes que pesa cada `float` en memoria: $1,057 \times 4 = 4,228 \text{ bytes} \approx \mathbf{4.2 \text{ KB}}$, perfectamente compatible con los 32 KB del Arduino Uno y 256 KB del Arduino Mega.
+
+#### 6. Celda de Verificación de Pesos y Emulación de Arduino
+```python
+w1, b1 = best_model.layers[0].get_weights()
+w2, b2 = best_model.layers[1].get_weights()
+w3, b3 = best_model.layers[2].get_weights()
+
+def arduino_forward(raw_input):
+    # 1. Normalización interna de entradas
+    x_norm = (raw_input - scaler_X.data_min_) / (scaler_X.data_max_ - scaler_X.data_min_)
+    # 2. Capa Oculta 1 (Dense 32 + ReLU)
+    z1 = np.dot(x_norm, w1) + b1
+    a1 = relu(z1)
+    # 3. Capa Oculta 2 (Dense 16 + ReLU)
+    z2 = np.dot(a1, w2) + b2
+    a2 = relu(z2)
+    # 4. Capa de Salida (Dense 1 + Lineal)
+    y_norm = np.dot(a2, w3) + b3
+    # 5. DESNORMALIZACIÓN obligatoria al rango original de bicicletas
+    y_real = y_norm[0] * (scaler_y.data_max_[0] - scaler_y.data_min_[0]) + scaler_y.data_min_[0]
+    return max(0.0, float(y_real))
+```
+- **`best_model.layers[0].get_weights()`**: Extrae directamente de Keras la matriz de pesos sinápticos $W_1$ (dimensiones $15 \times 32$) y el vector de sesgos $b_1$ (dimensión $32$).
+- **`np.dot(x_norm, w1) + b1`**: Es el **producto punto matricial**, que calcula la combinación lineal $z = \sum w_i x_i + b$. Es exactamente el mismo bucle `for` anidado que programamos en C++ dentro del archivo `seoul_bike_mlp.ino` de Arduino.
+- **`relu(z1)`**: Aplica la función de activación $f(z) = \max(0, z)$. Si la suma ponderada es negativa la apaga ($0$); si es positiva la deja pasar sin alteración.
+- **`y_real = y_norm[0] * (scaler_y.data_max_[0] - scaler_y.data_min_[0]) + scaler_y.data_min_[0]`**: La fórmula de **desnormalización**. Multiplica la salida normalizada por el rango de bicicletas ($3,556 - 0$) y le suma el mínimo ($0$).
+- **`diff = abs(keras_val - ard_val)`**: Comprueba que la diferencia entre `model.predict()` de Keras y la función de Arduino es menor a $0.0001$ bicicletas, demostrando consistencia matemática absoluta entre el modelo en Python y el código embebido.
+
