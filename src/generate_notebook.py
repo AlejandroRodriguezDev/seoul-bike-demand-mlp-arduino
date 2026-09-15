@@ -270,10 +270,11 @@ m2.summary()
 """)
 
 add_md("""### Integración con TensorBoard (Criterio 8)
-Configuramos la extensión y el callback de TensorBoard tal como se enseñó en la Semana 4 y Semana 6.""")
+La siguiente celda `%load_ext tensorboard` carga la extensión de TensorBoard en el entorno de Jupyter/Colab (prepara el sistema). Los entrenamientos siguientes guardarán los datos en la carpeta `logs/`, y más abajo desplegaremos el visor interactivo con `%tensorboard --logdir logs`.""")
 
-add_code("""# Cargar extensión de TensorBoard en el cuaderno
+add_code("""# Cargar extensión de TensorBoard en el cuaderno (solo prepara el entorno, no muestra interfaz aún)
 %load_ext tensorboard
+print("Extensión TensorBoard cargada exitosamente. Lista para registrar entrenamientos.")
 """)
 
 add_md("""### Experimento 1: Comparación de Arquitecturas (Optimizador: Adam)""")
@@ -295,7 +296,7 @@ for name, model in architectures.items():
     opt = tf.keras.optimizers.Adam(learning_rate=0.005)
     model.compile(optimizer=opt, loss='mean_squared_error', metrics=['mean_absolute_error'])
     
-    log_dir = os.path.join('../logs', f"nb_arch_{name.split()[0]}_{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}")
+    log_dir = os.path.join('logs', f"nb_arch_{name.split()[0]}_{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}")
     tb_cb = TensorBoard(log_dir=log_dir, write_graph=True)
     
     h = model.fit(
@@ -344,7 +345,7 @@ for opt_name, opt_inst in optimizers.items():
     model = build_arch_2(input_dim)
     model.compile(optimizer=opt_inst, loss='mean_squared_error', metrics=['mean_absolute_error'])
     
-    log_dir = os.path.join('../logs', f"nb_opt_{opt_name}_{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}")
+    log_dir = os.path.join('logs', f"nb_opt_{opt_name}_{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}")
     tb_cb = TensorBoard(log_dir=log_dir, write_graph=True)
     
     h = model.fit(
@@ -404,10 +405,8 @@ add_md("""### Análisis de Tendencias Observadas:
 3. **Ausencia de Sobreajuste Severo:** Las curvas de `loss` (entrenamiento) y `val_loss` (prueba) convergen en trayectorias paralelas sin divergir, confirmando una adecuada capacidad de generalización sin sobreajuste ni subajuste.
 """)
 
-add_md("""### Lanzar TensorBoard Interactivo (Criterio 8)""")
-
-add_code("""# Para visualizar el grafo del modelo y las métricas en tiempo real:
-# %tensorboard --logdir ../logs
+add_code("""# Desplegar el panel interactivo de TensorBoard dentro del cuaderno
+%tensorboard --logdir logs
 """)
 
 add_md("""## 7. Bloque III: Validación y Selección del Mejor Modelo (Criterios 9 y 10)
