@@ -217,6 +217,26 @@ Comienza la sustentación con máxima seguridad, autoridad técnica y fluidez:
 - **Respuesta:**
   > *"Con 7,008 muestras de entrenamiento, un batch size de 64 genera aproximadamente 110 pasos de gradiente por época, equilibrando la velocidad de vectorización matricial en la GPU/CPU con el ruido estocástico suficiente para escapar de mínimos locales. En 80 épocas, observamos que las curvas de pérdida ya se estabilizaron en su meseta asintótica sin sobreajustarse."*
 
+### P7: "¿Por qué justo 80 épocas y no 20 o 500?"
+- **Respuesta contundente:**
+  > *"Profesor, la cantidad de épocas no es un número arbitrario ni mágico; se define analizando empíricamente las **curvas de convergencia del error (`loss` vs `val_loss`)**:  
+  > 1. **Si usáramos 20 épocas (Subajuste / Underfitting):** La curva de error todavía viene descendiendo rápidamente y no ha terminado de aprender los patrones complejos (como la interacción entre temperatura y hora pico). El modelo se quedaría a medio camino con un $R^2$ inferior.  
+  > 2. **Si usáramos 500 épocas (Sobreajuste / Overfitting):** La curva de validación ya no bajaría más; por el contrario, después de cierto punto comenzaría a subir (*divergencia*), lo que significa que la red empezaría a memorizar el ruido específico del entrenamiento en lugar de aprender las leyes generales de la demanda, además de desperdiciar energía y tiempo de cómputo.  
+  > 3. **¿Por qué 80? (Punto Dulce de Convergencia):** Alrededor de la época 30 a 45, la función de pérdida alcanza su **asíntota horizontal** (meseta donde el error ya no cambia significativamente). Dejamos correr hasta la época 80 para verificar que la curva de validación se mantuviera totalmente plana y paralela a la de entrenamiento, confirmando estabilidad asintótica sin sobreajuste."*
+
+### P8: "¿Qué es Backpropagation y cómo funciona exactamente el proceso de entrenar la red paso a paso?"
+- **Respuesta:**
+  > *"Backpropagation (Retropropagación del error) es el algoritmo matemático fundamental que permite a una red neuronal aprender. Utiliza la **Regla de la Cadena del Cálculo Diferencial** para calcular la derivada parcial de la función de pérdida respecto a cada uno de los 1,057 pesos de la red ($\frac{\partial L}{\partial W}$), propagando el error desde la salida hacia atrás hasta la primera capa.  
+  >  
+  > El ciclo completo de entrenamiento ocurre en 5 pasos iterativos en cada lote (batch):  
+  > 1. **Paso 1 - Propagación hacia adelante (Forward Pass):** Entran las 15 variables de un lote de 64 muestras. En cada capa se calcula la combinación lineal $z = W \cdot x + b$, se aplica la activación ReLU $a = \max(0, z)$, y la neurona de salida lineal arroja la predicción $\hat{y}$.  
+  > 2. **Paso 2 - Cálculo del Costo (Loss):** Se compara la predicción $\hat{y}$ con la realidad $y$ mediante el Error Cuadrático Medio: $MSE = \frac{1}{B}\sum(y - \hat{y})^2$.  
+  > 3. **Paso 3 - Retropropagación (Backpropagation):** Se calcula qué tanto 'culpable' fue cada peso del error final. Comenzando desde la capa de salida hacia la capa de entrada, se aplica la regla de la cadena:  
+  >    $$\frac{\partial L}{\partial W_l} = \frac{\partial L}{\partial a} \cdot \frac{\partial a}{\partial z} \cdot \frac{\partial z}{\partial W_l}$$  
+  > 4. **Paso 4 - Actualización de Pesos (Paso del Optimizador):** El optimizador (Adam) ajusta cada peso en sentido opuesto al gradiente para reducir el error en la siguiente pasada:  
+  >    $$W_{nuevo} = W_{viejo} - \eta \cdot \Delta W$$  
+  > 5. **Paso 5 - Cierre de Época y Validación:** Cuando pasan los 110 lotes (las 7,008 muestras completas), se completa 1 época. En ese instante, Keras pasa las 1,752 muestras de prueba (`X_test`), calcula el `val_loss` sin tocar los pesos, lo guarda en TensorBoard y arranca la siguiente época. Esto se repite exactamente 80 veces."*
+
 ---
 
 ## 4. GUÍA QUIRÚRGICA DEL CÓDIGO (CÓMO EXPLICAR CADA LÍNEA "SALVAJE" Y PARÁMETRO)
