@@ -1,7 +1,7 @@
 # GUÍA MAESTRA DE SUSTENTACIÓN ORAL (VALOR: 70% DE LA NOTA)
 ## Miniproyecto: Redes Neuronales MLP para Regresión (Seoul Bike Sharing Demand)
 **Asignatura:** Redes Neuronales Artificiales y Deep Learning  
-**Profesor:** Jesús Alfonso López S.  
+**Profesor:** Gilber Alexis Corrales Gallego  
 **Integrantes:**
 - Alejandro Rodríguez Cortés (Cód. 2225645)
 - Nicolás Mejía Ochoa (Cód. 2205076)  

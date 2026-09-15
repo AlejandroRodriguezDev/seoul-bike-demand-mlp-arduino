@@ -28,7 +28,7 @@ md_content = f"""# Predicción de la Demanda Horaria en Sistemas de Bicicletas C
 
 **Autores:** Alejandro Rodríguez Cortés (Cód. 2225645), Nicolás Mejía Ochoa (Cód. 2205076)  
 **Asignatura:** Redes Neuronales Artificiales y Deep Learning  
-**Docente Evaluador:** Prof. Jesús Alfonso López S.  
+**Docente Evaluador:** Prof. Gilber Alexis Corrales Gallego  
 **Institución:** Universidad Autónoma de Occidente, Facultad de Ingeniería, Departamento de Automática y Electrónica  
 **Fecha:** Septiembre de 2026  
 
@@ -213,7 +213,7 @@ title_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
 # Autores e Institución
 meta_p = doc.add_paragraph()
-meta_run = meta_p.add_run("Alejandro Rodríguez Cortés (Cód. 2225645)  |  Nicolás Mejía Ochoa (Cód. 2205076)\nAsignatura: Redes Neuronales Artificiales y Deep Learning\nDocente Evaluador: Prof. Jesús Alfonso López S.\nFacultad de Ingeniería - Universidad Autónoma de Occidente, Cali, Colombia")
+meta_run = meta_p.add_run("Alejandro Rodríguez Cortés (Cód. 2225645)  |  Nicolás Mejía Ochoa (Cód. 2205076)\nAsignatura: Redes Neuronales Artificiales y Deep Learning\nDocente Evaluador: Prof. Gilber Alexis Corrales Gallego\nFacultad de Ingeniería - Universidad Autónoma de Occidente, Cali, Colombia")
 meta_run.font.size = Pt(10)
 meta_run.font.italic = True
 meta_run.font.name = 'Times New Roman'

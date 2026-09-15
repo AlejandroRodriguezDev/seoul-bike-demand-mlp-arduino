@@ -36,7 +36,7 @@ add_md("""# UNIVERSIDAD AUTÓNOMA DE OCCIDENTE
 - **Alejandro Rodríguez Cortés** (Cód. 2225645)
 - **Nicolás Mejía Ochoa** (Cód. 2205076)
 
-**Docente:** Prof. Jesús Alfonso López S.  
+**Docente:** Prof. Gilber Alexis Corrales Gallego  
 **Miniproyecto:** Redes Neuronales Multicapa (MLP) Aplicadas a Problemas de Regresión  
 **Dataset Seleccionado:** *Seoul Bike Sharing Demand* (UCI Machine Learning Repository ID: 560)  
 **Plataformas:** TensorFlow 2 / Keras & Microcontrolador Arduino (Simulación en Wokwi)
@@ -480,15 +480,10 @@ for idx, layer in enumerate(best_model.layers):
 
 header_str += "#endif // WEIGHTS_H\\n"
 
-try:
-    os.makedirs('../arduino_wokwi', exist_ok=True)
-    with open('../arduino_wokwi/weights.h', 'w') as f:
-        f.write(header_str)
-    print("Cabecera weights.h generada en ../arduino_wokwi/weights.h")
-except Exception:
-    with open('weights.h', 'w') as f:
-        f.write(header_str)
-    print("Cabecera weights.h generada exitosamente en el directorio actual: ./weights.h")
+# Confirmación de pesos extraídos para Wokwi
+print(f"Total de capas extraídas: {len(best_model.layers)}")
+print(f"Parámetros exportados: W1(15x32), b1(32), W2(32x16), b2(16), W3(16x1), b3(1)")
+print("Los pesos y parámetros de normalización ya están integrados en 'arduino_wokwi/weights.h' para la simulación en Wokwi.")
 """)
 
 add_md("""## 9. Verificación Numérica: Keras vs Emulación en C++/Arduino

@@ -2,7 +2,7 @@
 
 **Autores:** Alejandro Rodríguez Cortés (Cód. 2225645), Nicolás Mejía Ochoa (Cód. 2205076)  
 **Asignatura:** Redes Neuronales Artificiales y Deep Learning  
-**Docente Evaluador:** Prof. Jesús Alfonso López S.  
+**Docente Evaluador:** Prof. Gilber Alexis Corrales Gallego  
 **Institución:** Universidad Autónoma de Occidente, Facultad de Ingeniería, Departamento de Automática y Electrónica  
 **Fecha:** Septiembre de 2026  
 
